@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тарифы | CockPerskiy</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/tariffs.css"> <!-- дополнительные стили для карточек -->
+</head>
+<body>
+  <!-- Шапка -->
+  <div id="header-container"></div>
+
+  <!-- Hero секция -->
+  <section class="tariffs-hero">
+    <div class="container">
+      <h1>Выберите тарифный план</h1>
+      <p>Все тарифы включают 30-дневную гарантию возврата денег</p>
+    </div>
+  </section>
+
+  <!-- Сетка тарифов -->
+  <section class="tariffs-section">
+    <div class="container">
+      <div class="tariffs-grid" id="tariffsGrid">
+        <div style="grid-column: 1/-1; text-align: center; padding: 50px;">
+          Загрузка тарифов...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Сравнительная таблица (статичная, можно позже загружать) -->
+  <section class="comparison-section">
+    <div class="container">
+      <h2>Сравнение тарифов</h2>
+      <div class="comparison-table-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Возможности</th>
+              <th>Basic</th>
+              <th class="highlight">Pro</th>
+              <th>Ultimate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Антивирус</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Фаервол</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>Защита от фишинга</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td></tr>
+            <tr><td>VPN</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+            <tr><td>Устройств</td><td>1</td><td>3</td><td>5</td></tr>
+            <tr><td>Поддержка</td><td>Email</td><td>Email + Чат</td><td>24/7 Премиум</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Подвал -->
+  <div id="footer-container"></div>
+
+  <!-- Встроенный API (глобальный window.api) -->
+  <script>
+    (function() {
+      const API_BASE = window.location.origin + '/api';
+
+      window.api = {
+        async request(endpoint, options = {}) {
+          const token = localStorage.getItem('token');
+          const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+            ...options.headers
+          };
+
+          const response = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            headers,
+          });
+
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Сервер вернул не JSON: ${response.status} ${text}`);
+          }
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.message || JSON.stringify(data));
+          }
+          return data;
+        },
+        get(endpoint) { return this.request(endpoint); },
+        post(endpoint, body) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(body) }); },
+        put(endpoint, body) { return this.request(endpoint, { method: 'PUT', body: JSON.stringify(body) }); },
+        delete(endpoint) { return this.request(endpoint, { method: 'DELETE' }); },
+      };
+    })();
+  </script>
+
+  <!-- Основной скрипт страницы -->
+  <script>
+    // Загрузка шапки и подвала
+    (function loadComponents() {
+      fetch('/components/header.html')
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById('header-container').innerHTML = html;
+          updateNav();
+        });
+      fetch('/components/footer.html')
+        .then(r => r.text())
+        .then(html => document.getElementById('footer-container').innerHTML = html);
+    })();
+
+    function updateNav() {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const guestLinks = document.getElementById('guestLinks');
+      const userLinks = document.getElementById('userLinks');
+      const adminLink = document.getElementById('adminLink');
+      if (token) {
+        if (guestLinks) guestLinks.style.display = 'none';
+        if (userLinks) userLinks.style.display = 'flex';
+        if (adminLink && user.role === 'admin') adminLink.style.display = 'block';
+      } else {
+        if (guestLinks) guestLinks.style.display = 'flex';
+        if (userLinks) userLinks.style.display = 'none';
+        if (adminLink) adminLink.style.display = 'none';
+      }
+    }
+
+    // Загрузка тарифов
+    async function loadTariffs() {
+      const container = document.getElementById('tariffsGrid');
+      try {
+        const tariffs = await window.api.get('/tariffs');
+        if (!tariffs || tariffs.length === 0) {
+          container.innerHTML = '<p style="text-align:center;">Нет доступных тарифов</p>';
+          return;
+        }
+        container.innerHTML = tariffs.map((t, index) => {
+          const popular = t.protection_level === 'pro' ? 'popular' : '';
+          const badge = popular ? '<div class="popular-badge">🔥 Популярный</div>' : '';
+          const features = getFeaturesForLevel(t.protection_level);
+          return `
+            <div class="tariff-card ${popular}">
+              ${badge}
+              <div class="tariff-header">
+                <span class="tariff-icon">${index === 0 ? '🟢' : index === 1 ? '🟡' : '🔴'}</span>
+                <h3>${t.name}</h3>
+                <p class="tariff-subtitle">${getProtectionLabel(t.protection_level)}</p>
+              </div>
+              <div class="tariff-price-section">
+                <div class="tariff-price">
+                  <span class="currency">₽</span>${t.price}<span class="period">/год</span>
+                </div>
+              </div>
+              <ul class="tariff-features">
+                ${features.map(f => `<li><span class="feature-check">✓</span> ${f}</li>`).join('')}
+              </ul>
+              <div class="tariff-action">
+                <a href="/checkout.html?tariff=${t.id}" class="btn btn-primary" style="width:100%;">Выбрать ${t.name}</a>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        container.innerHTML = `<p style="color:red; text-align:center;">Ошибка загрузки: ${error.message}</p>`;
+      }
+    }
+
+    function getFeaturesForLevel(level) {
+      const map = {
+        basic: ['Антивирус', 'Защита от вымогателей', '1 устройство', 'Базовая поддержка'],
+        pro:   ['Всё из Basic', 'Фаервол', 'Защита от фишинга', '3 устройства', 'Приоритетная поддержка'],
+        ultimate: ['Всё из Pro', 'VPN', 'Менеджер паролей', '5 устройств', 'Премиум поддержка 24/7']
+      };
+      return map[level] || map.basic;
+    }
+
+    function getProtectionLabel(level) {
+      return level === 'basic' ? 'Базовая защита' : level === 'pro' ? 'Продвинутая защита' : 'Максимальная защита';
+    }
+
+    // Запуск после загрузки
+    document.addEventListener('DOMContentLoaded', loadTariffs);
+  </script>
+</body>
+</html>

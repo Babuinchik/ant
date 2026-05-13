@@ -1,0 +1,32 @@
+<header>
+  <nav class="navbar">
+    <div class="container">
+      <a href="/" class="logo">
+        <div class="logo-icon">🛡️</div> CockPerskiy
+      </a>
+      <ul class="nav-links">
+        <li><a href="/tariffs.html">Тарифы</a></li>
+        <li><a href="/about.html">О продукте</a></li>
+        <li><a href="/faq.html">FAQ</a></li>
+        <li><a href="/contact.html">Контакты</a></li>
+      </ul>
+      <div class="nav-links" id="guestLinks">
+        <a href="/login.html" class="btn btn-outline">Войти</a>
+        <a href="/register.html" class="btn btn-primary">Регистрация</a>
+      </div>
+      <div class="nav-links" id="userLinks" style="display: none;">
+        <a href="/profile.html">Личный кабинет</a>
+        <a href="/subscriptions.html">Мои подписки</a>
+        <a href="#" class="btn btn-outline" onclick="logout()">Выйти</a>
+      </div>
+      <div id="adminLink" style="display: none;">
+        <a href="/admin/dashboard.html" class="btn btn-primary">Админ-панель</a>
+      </div>
+      <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6h18M3 18h18"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+</header>

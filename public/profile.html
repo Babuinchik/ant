@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Личный кабинет | CockPerskiy</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+</head>
+<body>
+  <div id="header-container"></div>
+
+  <div class="container">
+    <div class="dashboard">
+      <aside class="sidebar">
+        <ul>
+          <li><a href="/profile.html" class="active">Обзор</a></li>
+          <li><a href="/subscriptions.html">Мои подписки</a></li>
+          <li><a href="/orders.html">История заказов</a></li>
+        </ul>
+      </aside>
+      <main class="dashboard-content">
+        <h1>Добро пожаловать, <span id="userName">...</span>!</h1>
+        <div class="grid grid-3">
+          <div class="card">
+            <h3>Активные подписки</h3>
+            <div class="big-number" id="activeSubs">0</div>
+          </div>
+          <div class="card">
+            <h3>Защищено устройств</h3>
+            <div class="big-number" id="protectedDevices">0</div>
+          </div>
+          <div class="card">
+            <h3>Ближайшее продление</h3>
+            <div id="nextRenewal">—</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module">
+    import { api } from '/assets/js/api.js';
+    import '/assets/js/main.js';
+
+    async function loadProfile() {
+      try {
+        const user = await api.get('/user');
+        document.getElementById('userName').textContent = user.name;
+        // Здесь можно подгрузить подписки и посчитать устройства
+        const subscriptions = await api.get('/subscriptions');
+        document.getElementById('activeSubs').textContent = subscriptions.filter(s => s.status === 'active').length;
+        // ... дополнительные расчёты
+      } catch (err) {
+        console.error(err);
+        window.location.href = '/login.html';
+      }
+    }
+    loadProfile();
+  </script>
+  <script src="/assets/js/header.js"></script>
+</body>
+</html>

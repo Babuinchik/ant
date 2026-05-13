@@ -1,0 +1,42 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cockperskiy-app
+    ports:
+      - "8080:80"
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=cockperskiy
+      - DB_USERNAME=appuser
+      - DB_PASSWORD=secret
+      - APP_ENV=local
+      - APP_DEBUG=true
+    volumes:
+      - .:/var/www
+    depends_on:
+      - db
+    networks:
+      - app
+
+  db:
+    image: postgres:16-alpine
+    container_name: cockperskiy-db
+    environment:
+      POSTGRES_DB: cockperskiy
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app
+
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  pgdata:

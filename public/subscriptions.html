@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мои подписки | CockPerskiy</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+</head>
+<body>
+  <!-- Шапка -->
+  <div id="header-container"></div>
+
+  <div class="container">
+    <div class="dashboard">
+      <aside class="sidebar">
+        <ul>
+          <li><a href="/profile.html">Обзор</a></li>
+          <li><a href="/subscriptions.html" class="active">Мои подписки</a></li>
+          <li><a href="/orders.html">История заказов</a></li>
+        </ul>
+      </aside>
+      <main class="dashboard-content">
+        <h1>Мои подписки</h1>
+        <div id="subscriptionsList">Загрузка...</div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Встроенный api.js (глобальный window.api) -->
+  <script>
+    (function() {
+      const API_BASE = window.location.origin + '/api';
+
+      window.api = {
+        async request(endpoint, options = {}) {
+          const token = localStorage.getItem('token');
+          const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+            ...options.headers
+          };
+          const response = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            headers,
+          });
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`Сервер вернул не JSON: ${response.status} ${text}`);
+          }
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || JSON.stringify(data));
+          return data;
+        },
+        get(endpoint) { return this.request(endpoint); },
+        post(endpoint, body) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(body) }); },
+      };
+    })();
+  </script>
+
+  <script>
+    // Загрузка шапки
+    (function loadHeader() {
+      fetch('/components/header.html')
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById('header-container').innerHTML = html;
+          updateNav();
+        });
+    })();
+
+    function updateNav() {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const guestLinks = document.getElementById('guestLinks');
+      const userLinks = document.getElementById('userLinks');
+      const adminLink = document.getElementById('adminLink');
+      if (token) {
+        if (guestLinks) guestLinks.style.display = 'none';
+        if (userLinks) userLinks.style.display = 'flex';
+        if (adminLink && user.role === 'admin') adminLink.style.display = 'block';
+      } else {
+        if (guestLinks) guestLinks.style.display = 'flex';
+        if (userLinks) userLinks.style.display = 'none';
+        if (adminLink) adminLink.style.display = 'none';
+      }
+    }
+
+    // Загрузка подписок
+    async function loadSubscriptions() {
+      const container = document.getElementById('subscriptionsList');
+      try {
+        const subs = await window.api.get('/subscriptions');
+        if (!subs || subs.length === 0) {
+          container.innerHTML = '<p>У вас пока нет активных подписок.</p>';
+          return;
+        }
+        let html = '';
+        subs.forEach(sub => {
+          const tariffName = sub.order?.tariff?.name || 'Тариф';
+          const status = sub.status;
+          html += `
+            <div class="card" style="margin-bottom:20px;">
+              <h3>${tariffName}</h3>
+              <p>Статус: <span class="badge badge-${status === 'active' ? 'success' : (status === 'expired' ? 'warning' : 'danger')}">${status}</span></p>
+              <p>Истекает: ${new Date(sub.expires_at).toLocaleDateString()}</p>
+              <p>Лицензионный ключ: <code>${sub.license_key}</code></p>
+              ${status === 'active' ? `<button class="btn btn-danger" onclick="cancelSubscription(${sub.id})">Отменить подписку</button>` : ''}
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (error) {
+        container.innerHTML = `<p style="color:red;">Ошибка загрузки: ${error.message}</p>`;
+      }
+    }
+
+    window.cancelSubscription = async function(id) {
+      if (confirm('Вы уверены, что хотите отменить подписку?')) {
+        try {
+          await window.api.post(`/subscriptions/${id}/cancel`);
+          loadSubscriptions();
+        } catch (error) {
+          alert('Ошибка: ' + error.message);
+        }
+      }
+    };
+
+    // Запуск после загрузки страницы
+    document.addEventListener('DOMContentLoaded', loadSubscriptions);
+  </script>
+</body>
+</html>
